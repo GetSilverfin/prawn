@@ -203,16 +203,22 @@ module Prawn
 
         def process_text(text)
           string = strip_zero_width_spaces(text)
+
           if exclude_trailing_white_space?
-            string = process_soft_hyphens(string.rstrip)
+            string = string.rstrip
+
+            if soft_hyphens_need_processing?(string)
+              string = process_soft_hyphens(string[0..-2]) + string[-1..-1]
+            end
+          else
+            if soft_hyphens_need_processing?(string)
+              string = process_soft_hyphens(string)
+            end
           end
+
           case direction
           when :rtl
-            if ruby_18 { true }
-              string.scan(/./mu).reverse.join
-            else
-              string.reverse
-            end
+            string.reverse
           else
             string
           end
@@ -222,21 +228,20 @@ module Prawn
           @format_state[:exclude_trailing_white_space]
         end
 
+        def soft_hyphens_need_processing?(string)
+          string.length > 0 && normalized_soft_hyphen
+        end
+
         def normalized_soft_hyphen
           @format_state[:normalized_soft_hyphen]
         end
 
         def process_soft_hyphens(string)
-          if string.length > 0 && normalized_soft_hyphen
-            ruby_19 {
-              if string.encoding != normalized_soft_hyphen.encoding
-                string.force_encoding(normalized_soft_hyphen.encoding)
-              end
-            }
-            string[0..-2].gsub(normalized_soft_hyphen, "") + string[-1..-1]
-          else
-            string
+          if string.encoding != normalized_soft_hyphen.encoding
+            string.force_encoding(normalized_soft_hyphen.encoding)
           end
+
+          string.gsub(normalized_soft_hyphen, "")
         end
 
         def strip_zero_width_spaces(string)
