@@ -535,10 +535,12 @@ module Prawn
 
       previous_graphic_state = state.page.stack.stack.map{|g| GraphicState.new(g)}
 
-      success = transaction { yield }
-
-      @bounding_box = @bounding_box.__getobj__ if @bounding_box.respond_to?(:__getobj__)
-      @group_level -= 1
+      begin
+        success = transaction { yield }
+      ensure
+        @bounding_box = @bounding_box.__getobj__ if @bounding_box.respond_to?(:__getobj__)
+        @group_level -= 1
+      end
 
       unless success
         if second_attempt
