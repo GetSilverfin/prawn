@@ -312,6 +312,11 @@ module Prawn
     def go_to_page(k)
       @page_number = k
       state.page = state.pages[k-1]
+
+      # Clear existing margin as we don't want it to pass any existing padding
+      # into the new generated margin_box
+      @margin_box = nil
+
       generate_margin_box
       @bounding_box = @margin_box
       @y = @bounding_box.absolute_top
