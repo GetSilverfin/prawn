@@ -6,6 +6,7 @@
 #
 # This is free software. Please see the LICENSE and COPYING files for details.
 
+require 'prawn/table/column_width_calculator'
 require 'prawn/table/cells'
 require 'prawn/table/cell'
 require 'prawn/table/cell/in_table'
@@ -567,21 +568,7 @@ module Prawn
     # Returns an array of each column's natural (unconstrained) width.
     #
     def natural_column_widths
-      @natural_column_widths ||=
-        begin
-          widths_by_column = Hash.new(0)
-          cells.each do |cell|
-            next if cell.is_a?(Cell::SpanDummy)
-
-            # Split the width of colspanned cells evenly by columns
-            width_per_column = cell.width.to_f / cell.colspan
-            cell.colspan.times do |i|
-              widths_by_column[cell.column + i] =
-                [widths_by_column[cell.column + i], width_per_column].max
-            end
-          end
-          widths_by_column.sort_by { |col, _| col }.map { |_, w| w }
-        end
+      @natural_column_widths ||= ColumnWidthCalculator.new(cells).natural_widths
     end
 
     # Returns the "natural" (unconstrained) width of the table. This may be
