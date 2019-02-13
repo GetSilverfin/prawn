@@ -93,7 +93,11 @@ module Prawn
       def color_type(color)
         case color
         when String
-          :RGB
+          if color =~ /\A[0-F]{6}\z/i
+            :RGB
+          else
+            :BLACK
+          end
         when Array
           case color.length
           when 3
@@ -114,6 +118,8 @@ module Prawn
         when :CMYK
           c,m,y,k = *color
           [c / 100.0, m / 100.0, y / 100.0, k / 100.0]
+        when :BLACK
+          [0, 0, 0]
         end
       end
 
@@ -123,7 +129,7 @@ module Prawn
 
       def color_space(color)
         case color_type(color)
-        when :RGB
+        when :RGB, :BLACK
           :DeviceRGB
         when :CMYK
           :DeviceCMYK
@@ -166,7 +172,7 @@ module Prawn
         if options[:pattern]
           set_color_space type, :Pattern
           add_content "/#{color} #{operator}"
-        else          
+        else
           set_color_space type, color_space(color)
           color = color_to_s(color)
           write_color(color, operator)
@@ -174,7 +180,7 @@ module Prawn
       end
 
       def set_fill_color(color = nil)
-        set_color :fill, color || current_fill_color        
+        set_color :fill, color || current_fill_color
       end
 
       def set_stroke_color(color = nil)
@@ -192,7 +198,7 @@ module Prawn
         graphic_state.color_space[type]
       end
 
-      def set_current_color_space(color_space, type)                
+      def set_current_color_space(color_space, type)
         save_graphics_state if graphic_state.nil?
         graphic_state.color_space[type] = color_space
       end
@@ -201,7 +207,7 @@ module Prawn
         graphic_state.fill_color
       end
 
-      def current_fill_color=(color)        
+      def current_fill_color=(color)
         graphic_state.fill_color = color
       end
 
@@ -228,4 +234,3 @@ module Prawn
     end
   end
 end
-
