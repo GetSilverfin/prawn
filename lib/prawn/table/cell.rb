@@ -50,6 +50,7 @@ module Prawn
     # lib/prawn/table/cell/*.rb for a template.
     #
     class Cell
+      BORDER_INDEX_MAP = {top: 0, right: 1, bottom: 2, left: 3}
 
       # Amount of dead space (in PDF points) inside the borders but outside the
       # content. Padding defaults to 5pt.
@@ -659,8 +660,7 @@ module Prawn
         when line.length == 4
           [line[0], line[1], line[2], line[3]]
         else
-          raise ArgumentError, "border_line must be one of :solid, :dashed, "
-            ":dotted or an array [v,h] or [t,r,b,l]"
+          raise ArgumentError, "border_line must be one of :solid, :double, :dashed, :dotted or an array [v,h] or [t,r,b,l]"
         end
       end
       alias_method :border_lines=, :border_line=
@@ -717,8 +717,13 @@ module Prawn
         x, y = pt
 
         @pdf.mask(:line_width, :stroke_color) do
+          pad_top = padding_for_double_border(:top)
+          pad_right = padding_for_double_border(:right)
+          pad_bottom = padding_for_double_border(:bottom)
+          pad_left = padding_for_double_border(:left)
+
           @borders.each do |border|
-            idx = {:top => 0, :right => 1, :bottom => 2, :left => 3}[border]
+            idx = BORDER_INDEX_MAP[border]
             border_color = @border_colors[idx]
             border_width = @border_widths[idx]
             border_line  = @border_lines[idx]
@@ -727,33 +732,48 @@ module Prawn
 
             # Left and right borders are drawn one-half border beyond the center
             # of the corner, so that the corners end up square.
-            from, to = case border
-                       when :top
-                         [[x, y], [x+width, y]]
-                       when :bottom
-                         [[x, y-height], [x+width, y-height]]
-                       when :left
-                         [[x, y + (border_top_width / 2.0)],
-                          [x, y - height - (border_bottom_width / 2.0)]]
-                       when :right
-                         [[x+width, y + (border_top_width / 2.0)],
-                          [x+width, y - height - (border_bottom_width / 2.0)]]
-                       end
+            from, to =
+              case border
+              when :top
+                [[x, y], [x + width, y]]
+              when :bottom
+                [[x, y - height], [x + width, y - height]]
+              when :left
+                [[x, y + (border_top_width / 2.0)],
+                 [x, y - height - (border_bottom_width / 2.0)]]
+              when :right
+                [[x + width, y + (border_top_width / 2.0)],
+                 [x + width, y - height - (border_bottom_width / 2.0)]]
+              end
+
+            @pdf.line_width   = border_width
+            @pdf.stroke_color = border_color
 
             case border_line
             when :dashed
               @pdf.dash border_width * 4
             when :dotted
-              @pdf.dash border_width, :space => border_width * 2
+              @pdf.dash border_width, space: border_width * 2
             when :solid
               # normal line style
+            when :double
+              from2, to2 =
+                case border
+                when :top
+                  [[from.first + pad_left, from.last - 1], [to.first - pad_right, to.last - 1]]
+                when :bottom
+                  [[from.first + pad_left, from.last + 1], [to.first - pad_right, to.last + 1]]
+                when :left
+                  [[from.first + 1, from.last - pad_top], [to.first + 1, to.last + pad_bottom]]
+                when :right
+                  [[from.first - 1, from.last - pad_top], [to.first - 1, to.last + pad_bottom]]
+                end
+
+              @pdf.stroke_line(from2, to2)
             else
-              raise ArgumentError, "border_line must be :solid, :dotted or" +
-                " :dashed"
+              raise ArgumentError, "border_line must be :solid, :double, :dotted or :dashed"
             end
 
-            @pdf.line_width   = border_width
-            @pdf.stroke_color = border_color
             @pdf.stroke_line(from, to)
             @pdf.undash
           end
@@ -767,6 +787,12 @@ module Prawn
         raise NotImplementedError, "subclasses must implement draw_content"
       end
 
+      private
+
+      def padding_for_double_border(side)
+        idx = BORDER_INDEX_MAP[side]
+        @borders.include?(side) && @border_widths[idx] > 0 && @border_lines[idx] == :double && 1 || 0
+      end
     end
   end
 end
